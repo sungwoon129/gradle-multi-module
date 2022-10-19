@@ -1,0 +1,21 @@
+
+// core 모듈의 경우 main 메서드 없이 라이브러리 역할을 하는 모듈이기때문에 BootJar 가 아닌 jar 파일로 생성되어 다른 프로젝트에 라이브러리 처럼 포함되게 구현
+// 그래서 빌드 결과물이 jar 파일이 되도록 설정
+bootJar { enabled = false }
+jar { enabled = true }
+
+dependencies {
+    // api는 이전 gradle7 이전 버전에서 compile 을 대체하는 방식.
+    // implementation 과의 차이점은 api 의 경우 의존 라이브러리를 수정하면 해당 모듈을 의존하고 있는 모듈들 모두 rebuild
+    // implementation 은 의존라이브러리를 수정하는 경우 직접 연결된 본 모듈까지만 rebuild 한다는 점. 또한 하위 의존관계를 가진 라이브러리에 접근이 가능하다는 점
+    // 예를들어 A,B,C 3개의 모듈이 다음과 같은 의존관계를 가질 때, A를 수정하게되면 rebuild 범위가 다르다.
+    // A(api or implementation) <- B <- C
+    // A 가 implementation 을 활용한 의존관계라면 A,B 만 rebuild
+    // A 가 api 를 활용한 의존관계라면 C에서 A에 대한 접근이 가능하므로 A,B,C 모두 rebuild
+    // 이 프로젝트에서 jpa 를 활용한 domain 모듈 계층을 최종적으로 조합하여 사용하는 application 모듈 계층에서는 공개된 api를 통해서만 도메인에 접근하기 위해 implementation 을 사용하고,
+    // 이 외의 계층에서는 api 를 활용하여 다른 모듈에 접근이 가능하도록 개발한다.
+    api 'org.springframework.boot:spring-boot-starter-data-jpa'
+    runtimeOnly 'com.h2database:h2'
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+}
+
