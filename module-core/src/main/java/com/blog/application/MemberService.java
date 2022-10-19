@@ -6,6 +6,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import javax.transaction.Transactional;
+import java.util.NoSuchElementException;
 
 @Service
 @RequiredArgsConstructor
@@ -25,12 +26,12 @@ public class MemberService {
 
     @Transactional
     public Member findAnyMember() {
-        return memberRepository.findById(1L).get();
+        return memberRepository.findById(1L).orElseThrow(() -> new NoSuchElementException("해당 id를 가진 회원이 존재하지 않습니다."));
     }
 
     @Transactional
     public Member findById(Long id) {
-        return memberRepository.findById(id).orElseThrow(() -> new IllegalArgumentException("해당 id를 가진 회원이 존재하지 않습니다."));
+        return memberRepository.findById(id).orElseThrow(() -> new NoSuchElementException("해당 id를 가진 회원이 존재하지 않습니다."));
     }
 
 
