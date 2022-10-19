@@ -21,7 +21,15 @@ public class MemberController {
 
     @GetMapping("/")
     public Member findAnyMember() {
-        return memberWebService.findAnyMember();
+        Member anyMember = memberWebService.findAnyMember();
+
+        if(anyMember == null) {
+            memberWebService.saveAnyMember();
+            anyMember = memberWebService.findAnyMember();
+        }
+
+        return anyMember;
+
     }
 
 }
