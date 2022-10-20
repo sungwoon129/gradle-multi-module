@@ -52,7 +52,7 @@ Gradle로 새로운 프로젝트를 생성합니다. 여기서는 gradle-multi-m
 각각의 모듈에는 빌드를 어떻게 할 것인지에 대한 설정파일인 build.gradle 과 소스코드가 있는 src 폴더만 존재합니다.
 ROOT 프로젝트인 gradle-multi-module 은 각각의 모듈들을 묶어서 관리하는 역할만 하므로 src 폴더가 필요하지 않으니 삭제해줍니다.
 
-### settings.gradle ###
+### ROOT settings.gradle ###
 ![gradle-multi-module-img4](https://user-images.githubusercontent.com/43958570/196724367-5b5e43af-9e5e-4f11-ac3e-b96f70fed2d7.png)
 
 settings.gradle 을 열어보면 현재 ROOT 프로젝트에서 하위 모듈로 어떤 프로젝트들을 관리하고 있는지 명시되어 있습니다. 
@@ -60,7 +60,78 @@ settings.gradle 을 열어보면 현재 ROOT 프로젝트에서 하위 모듈로
 
 ![image](https://user-images.githubusercontent.com/43958570/196844343-0c20af5e-a5bf-4747-bfc3-d91aad136d23.png)
 
-다음에는 module-core 모듈에서는 프로젝트 전체에서 공통적으로 사용하는 domain, repository, domain service를 만들겠습니다.
+
+### ROOT build.gradle ###
+``` groovy
+// plugins 는 미리 구성해놓은 task 들의 그룹이며 특정 빌드과정에 필요한 기본정보를 포함하고 있습니다
+plugins {
+    // Spring Boot Gradle 플러그인으로 사용하면 Spring Boot 종속성을 관리하고 Gradle을 빌드 도구로 사용할 때 애플리케이션을 패키징하고 실행할 수 있습니다.
+    // 단독으로 사용되는 경우 프로젝트에 거의 영향을 주지 않습니다.
+    // 예를 들어 java 플러그인과 함께 적용되면 실행 가능한 jar 빌드 작업이 자동으로 구성됩니다.
+    // spring-boot-dependencies를 통해서 의존성 관리 기능을 제공하기도 합니다.
+
+    id 'org.springframework.boot' version '2.7.4'
+    id 'java'
+}
+
+repositories {
+    mavenCentral()
+}
+
+
+// bootJar 작업은 실행 가능한 jar을 생성하려고 시도하기 때문에 이를 위해서는 main() 메서드가 필요합니다.
+// Root 프로젝트는 main 없이 라이브러리의 역할을 하는 모듈이기 때문에 false로 비활성화해줍니다.
+bootJar.enabled = false
+
+// settings.gradle 에 명시된 include 프로젝트 모두에 대한 공통사항 정의(루트 제외)
+subprojects {
+    group = 'com.blog'
+    version = '0.0.1-SNAPSHOT'
+    sourceCompatibility = '11'
+
+    // subprojects 블록 안에서는 plugins 블록을 사용할 수 없어, 플러그인 등록을 위해서는 apply plugin 을 사용해야함
+
+    apply plugin: 'java'
+    // build.gradle 에서 api() 를 사용하려면 java-library 플러그인 적용필요
+    apply plugin: 'java-library'
+    apply plugin: 'org.springframework.boot'
+    // spring boot dependency 플러그인을 적용하여 사용중인 부트 버전에서 자동으로 의존성을 가져옴
+    apply plugin: 'io.spring.dependency-management'
+
+    configurations {
+        compileOnly {
+            extendsFrom annotationProcessor
+        }
+    }
+
+    repositories {
+        mavenCentral()
+    }
+
+    // 관리하는 모듈의 공통 dependencies
+    dependencies {
+        compileOnly 'org.projectlombok:lombok'
+        annotationProcessor 'org.projectlombok:lombok'
+        testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    }
+
+    test {
+        useJUnitPlatform()
+    }
+}
+```
+
+#### subprojects ####
+subprojects 블록안에서 setting.gradle 파일에 작성되어있는 하위 프로젝트들에 대한 설정을 공통으로 적용할 수 있습니다.
+dependencies, repositories 등 다른 부분은 멀티 모듈을 사용하지 않는 단일 프로젝트와 동일하게 설정하지만 plugins 블록은 subprojects 블록안에서 사용할 수 없기 때문에 apply plugin을 사용해서 적용시켜야 합니다.
+
+#### bootJar.enabled = false  ####
+특별히 설정하지 않고 gradle을 빌드하게 되면 **실행가능한 jar** 파일을 생성을 시도합니다. 이 때, 프로젝트의 시작점 역할을 하는 main 메소드가 필요하지만 gradle-multi-module 프로젝트는
+모듈들을 관리하는 역할을 하는 프로젝트이므로 main 메소드가 없기 때문에 bootJar.enabled = false 로 비활성시켜줍니다. 
+
+
+
+다음에는 **module-core** 모듈에서는 프로젝트 전체에서 공통적으로 사용하는 domain, repository, domain service를 만들겠습니다.
 도메인 서비스는 하나의 트랜잭션 단위를 의미합니다. 도메인 서비스는 도메인 영역에 위치한 도메인 로직을 표현할 때 사용되는 개념입니다.
 은행에서 '계좌이체' 라는 도메인이 있고, 계좌이체 서비스를 위해서는 송금하는 계좌와, 돈을 받을 계좌 그리고 금액이 필요합니다. 
 계좌이체를 하기 위해서는 두가지 행위가 필요합니다.
@@ -178,19 +249,23 @@ public class MemberService {
 
 ### module-core build.gradle ###
 ```groovy
+bootJar { enabled = false }
+jar { enabled = true }
+
 dependencies {
-   
     api 'org.springframework.boot:spring-boot-starter-data-jpa'
     runtimeOnly 'com.h2database:h2'
-    testImplementation 'org.springframework.boot:spring-boot-starter-test'
 }
 ```
 
 module-core 에서는 entity 클래스와 repository 기능이 필요하고 repository 테스트가 필요하기 때문에 관련 의존성들을 추가해줍니다.
-현재 단계에서는 여기까지만 설정을 합니다.
+또한 core 모듈은 다른 모듈들에 포함되어 라이브러리와 같은 역할을 하므로 main 메소드가 존재하지 않습니다. 그래서 bootJar { enabled = false } 옵션을 통해 
+
 [이동욱님의 블로그](https://jojoldu.tistory.com/m/123) 에서는 gradle3 버전을 쓰고 있어, readme.md 작성 기준으로 최신버전인 gradle7 에 알맞게 변경하였습니다.
 외부모듈에서 module-core의 member 엔티티에 접근하기 위해서 implementation 대신 api를 사용했습니다. api를 사용하면 module-core를 가져오는 모듈에서 또한 해당 라이브러리에 대한 의존성이 추가됩니다.
 이 때문에 Gradle 에서는 일반적으로는 api를 사용하는 것을 권장하지 않지만, 외부모듈에서도 라이브러리를 포함시켜 가져오기 위해서 사용했습니다.
+core 모듈은 다른 모듈들에서 사용하는 라이브러리와 같은 역할을 하는 모듈이므로 main 메소드가 존재하지 않기 때문에 bootJar { enabled = false } 설정을 통해 bootJar 옵션을 비활성화 시켜줍니다.
+하지만 jar 파일로 빌드되어 외부 모듈에 포함되어야 하기때문에 jar 옵션은 활성화 시켜줍니다.
 
 ![image](https://user-images.githubusercontent.com/43958570/196890366-ff5371c3-5bd1-4e8f-aeef-fb7640b403c6.png)
 
@@ -248,7 +323,7 @@ public class CoreApplicationTests {
 ![image](https://user-images.githubusercontent.com/43958570/196895890-1f54f761-b7d2-427a-bafa-b1112446edde.png)
 
 다시 테스트 해보니 이제는 잘 통과하는 걸 볼 수 있습니다.
-이제 다음 모듈인 module-batch 코드를 작성해보겠습니다.
+이제 다음 모듈인 **module-batch** 코드를 작성해보겠습니다.
 module-batch 에서는 module-core 의 클래스를 사용할 것이기 때문에 컨트롤러와 서비스를 만들겠습니다.
 
 ![image](https://user-images.githubusercontent.com/43958570/196897783-8b526d59-e64d-42f2-9561-13fbdf805d38.png)
@@ -290,80 +365,44 @@ public class BatchFacade {
     }
 }
 ```
-module-batch 에서 사용할 build.gradle 에서 사용할 의존성을 추가하겠습니다.
+다음은 module-batch 프로젝트의 build.gradle 에서 사용할 의존성을 추가하겠습니다.
 ```groovy
 dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-web'
     implementation project(':module-core')
 }
 ```
+batch 모듈은 참조용 모듈이 아니기 때문에 bootJar 옵션을 따로 설정하지 않습니다.
+또한, core 모듈의 클래스들에 접근하기 위해 implementation 을 사용하여 core 모듈에 대한 의존성을 명시합니다.
+
+이제 모두 끝났습니다. batch 모듈을 빌드해서 정상적으로 동작하는지 확인만 하면 됩니다.
+module-web 프로젝트는 module-batch와 거의 동일한 구조로 되어 있으니 github 코드로 확인하면 좋을 것 같습니다.
+
+### module-core 실행 ###
+
+![image](https://user-images.githubusercontent.com/43958570/196987801-a89e9bce-c8a3-40ec-a232-4c83843310ef.png)
+
+실행이 잘 된 것 같습니다. 이제 postman을 통해 결과를 확인해보겠습니다.
+
+### module-core 결과 ###
+![image](https://user-images.githubusercontent.com/43958570/196988461-7803e4cf-b4fa-4999-a5db-3c8cbe59e320.png)
+
+post 요청을 보내 임의의 회원을 생성한 후 localhost:8080 에 접속해 보겠습니다.
+
+![image](https://user-images.githubusercontent.com/43958570/196988685-ee127756-336d-4812-8f4e-63b7dbd6f726.png)
+
+등록한 회원 정보가 잘 나타납니다. 
+여기까지가 gradle을 사용해서 간단한 multi module 시스템을 구축해보았습니다. 
+저도 참고한 글들이 조금 오래된 글들이어서 헤메면서 했습니다. 처음하시는 분들에게 조그만 도움이 되었으면 좋겠습니다.
+감사합니다.
 
 
-### ROOT build.gradle ###
-``` groovy
-// plugins 는 미리 구성해놓은 task 들의 그룹이며 특정 빌드과정에 필요한 기본정보를 포함하고 있음
-plugins {
-    // Spring Boot Gradle 플러그인으로 사용하면 Spring Boot 종속성을 관리하고 Gradle을 빌드 도구로 사용할 때 애플리케이션을 패키징하고 실행할 수 있습니다.
-    // 단독으로 사용되는 경우 프로젝트에 거의 영향을 주지 않습니다.
-    // 예를 들어 java 플러그인과 함께 적용되면 실행 가능한 jar 빌드 작업이 자동으로 구성됩니다.
-    // spring-boot-dependencies를 통해서 의존성 관리 기능을 제공하기도 합니다.
+### 참고
 
-    id 'org.springframework.boot' version '2.7.4'
-    id 'java'
-}
-
-repositories {
-    mavenCentral()
-}
-
-
-// bootJar 작업은 실행 가능한 jar을 생성하려고 시도하기 때문에 이를 위해서는 main() 메서드가 필요합니다.
-// Root 프로젝트는 main 없이 라이브러리의 역할을 하는 모듈이기 때문에 false로 비활성화해줍니다.
-bootJar.enabled = false
-
-// settings.gradle 에 명시된 include 프로젝트 모두에 대한 공통사항 정의(상위 루트 제외)
-subprojects {
-    group = 'com.blog'
-    version = '0.0.1-SNAPSHOT'
-    sourceCompatibility = '11'
-
-    // subprojects 블록 안에서는 plugins 블록을 사용할 수 없어, 플러그인 등록을 위해서는 apply plugin 을 사용해야함
-
-    apply plugin: 'java'
-    // build.gradle 에서 api() 를 사용하려면 java-library 플러그인 적용필요
-    apply plugin: 'java-library'
-    apply plugin: 'org.springframework.boot'
-    // spring boot dependency 플러그인을 적용하여 사용중인 부트 버전에서 자동으로 의존성을 가져옴
-    apply plugin: 'io.spring.dependency-management'
-
-    configurations {
-        compileOnly {
-            extendsFrom annotationProcessor
-        }
-    }
-
-    repositories {
-        mavenCentral()
-    }
-
-    // 관리하는 모듈에 공통 dependencies
-    dependencies {
-        compileOnly 'org.projectlombok:lombok'
-        annotationProcessor 'org.projectlombok:lombok'
-        testImplementation 'org.springframework.boot:spring-boot-starter-test'
-    }
-
-    test {
-        useJUnitPlatform()
-    }
-}
-```
-
-
-
-
-
-
+> [이동욱님의 블로그](https://jojoldu.tistory.com/m/123)
+> [Backtony님의 블로그](https://backtony.github.io/spring/2022-06-02-spring-module-1/)
+> [Kotlin World](https://kotlinworld.com/317)
+> [Jae Honey 님의 블로그](https://jaehoney.tistory.com/248)
 
 
 
