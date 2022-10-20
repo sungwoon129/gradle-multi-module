@@ -397,12 +397,12 @@ post 요청을 보내 임의의 회원을 생성한 후 localhost:8080 에 접�
 감사합니다.
 
 
-### 참고
+### 참고 ###
 
-> [이동욱님의 블로그](https://jojoldu.tistory.com/m/123)
-> [Backtony님의 블로그](https://backtony.github.io/spring/2022-06-02-spring-module-1/)
-> [Kotlin World](https://kotlinworld.com/317)
-> [Jae Honey 님의 블로그](https://jaehoney.tistory.com/248)
++ [이동욱님의 블로그](https://jojoldu.tistory.com/m/123)
++ [Backtony님의 블로그](https://backtony.github.io/spring/2022-06-02-spring-module-1/)
++ [Kotlin World](https://kotlinworld.com/317)
++ [Jae Honey 님의 블로그](https://jaehoney.tistory.com/248)
 
 
 
