@@ -58,6 +58,248 @@ ROOT 프로젝트인 gradle-multi-module 은 각각의 모듈들을 묶어서 �
 settings.gradle 을 열어보면 현재 ROOT 프로젝트에서 하위 모듈로 어떤 프로젝트들을 관리하고 있는지 명시되어 있습니다. 
 위 코드는 gradle-multi-module이 module-core, module-web, module-batch 를 하위 모듈로 관리하고 있다는 의미입니다.
 
+![image](https://user-images.githubusercontent.com/43958570/196844343-0c20af5e-a5bf-4747-bfc3-d91aad136d23.png)
+
+다음에는 module-core 모듈에서는 프로젝트 전체에서 공통적으로 사용하는 domain, repository, domain service를 만들겠습니다.
+도메인 서비스는 하나의 트랜잭션 단위를 의미합니다. 도메인 서비스는 도메인 영역에 위치한 도메인 로직을 표현할 때 사용되는 개념입니다.
+은행에서 '계좌이체' 라는 도메인이 있고, 계좌이체 서비스를 위해서는 송금하는 계좌와, 돈을 받을 계좌 그리고 금액이 필요합니다. 
+계좌이체를 하기 위해서는 두가지 행위가 필요합니다.
+> + 송금하는 계좌에서 금액을 차감시킨다.
+> + 돈을 받는 계좌에서 금액을 증가시킨다.
+
+```java
+public class TransferService {
+    public void transferMoney(Account sendAcc, Account goalAccount, Money money) {
+        sendAcc.withdraw(money);
+        goalAccount.deposit(amounts);
+    }
+}
+```
+계좌이체를 하려면 계좌 도메인에서 두 가지 서비스가 필요하고, 각각의 서비스는 트랜잭션으로 처리되어야 합니다.
+여기서 "계좌이체"가 도메인 서비스에 해당합니다. 여러 도메인의 개념이 하나의 서비스에서 필요할 때, 하나의 도메인 안에서
+억지로 여러 도메인의 개념을 구현하여 사용하지 않고, 별도의 서비스를 만들어 관리하는 것입니다.
+
+Member 도메인 클래스와 MemberJpaRepository 를 만듭니다. 외부 모듈에서 Member DB를 직접 조회하거나 변경하는 행위는 프로젝트 계층구조에 적합하지 않습니다. 외부모듈에서 Member 클래스에 접근은 가능하지만, 외부모듈에서 JpaRepository를 호출하여 
+도메인을 직접 조작하면, 이후 Member 도메인에 변화가 생기면 Member 도메인을 변경하는 모든 모듈에도 수정이 필요합니다. 그래서 외부모듈에서는 MemberService를 통해 Member DB에 접근하도록 구성하였습니다.
+MemberService는 MemeberRepository에 의존하며, 외부모듈에 Member 데이터를 전달하는 역할을 합니다.
+MemberRepository는 도메인 서비스로 JPA 에 의존성이 있어 인터페이스로 추상화하고, infrastructure 영역에서 구현하였습니다.
+
+### module-core Member ###
+``` java
+@Getter
+@Entity
+@Builder
+@AllArgsConstructor(access = AccessLevel.PRIVATE)
+@NoArgsConstructor
+public class Member {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column
+    private String name;
+
+    @Column
+    private String email;
+
+    @Column
+    private String nickname;
+} 
+```
+
+### module-core MemberRepository ###
+```java
+public interface MemberRepository {
+    Member save(Member member);
+
+    Optional<Member> findById(Long id);
+}
+```
+
+### module-core MemberJpaRepository ###
+```java
+public interface MemberJpaRepository extends JpaRepository<Member,Long> {
+}
+```
+
+### module-core MemberRepositoryImpl ###
+```java
+@Repository
+@RequiredArgsConstructor
+public class MemberRepositoryImpl implements MemberRepository {
+
+    private final MemberJpaRepository memberJpaRepository;
+
+    @Override
+    public Member save(Member member) {
+        return memberJpaRepository.save(member);
+    }
+
+    @Override
+    public Optional<Member> findById(Long id) {
+        return memberJpaRepository.findById(id);
+    }
+
+
+}
+```
+
+### module-core MemberService ###
+```java
+@Service
+@RequiredArgsConstructor
+public class MemberService {
+
+    private final MemberRepository memberRepository;
+
+    @Transactional
+    public void saveAnyMember() {
+        memberRepository.save(Member.builder().name("random").build());
+    }
+
+    @Transactional
+    public Long signup (Member member) {
+        return memberRepository.save(member).getId();
+    }
+
+    @Transactional
+    public Member findAnyMember() {
+        return memberRepository.findById(1L).orElseThrow(() -> new NoSuchElementException("해당 id를 가진 회원이 존재하지 않습니다."));
+    }
+
+    @Transactional
+    public Member findById(Long id) {
+        return memberRepository.findById(id).orElseThrow(() -> new NoSuchElementException("해당 id를 가진 회원이 존재하지 않습니다."));
+    }
+    
+}
+```
+
+### module-core build.gradle ###
+```groovy
+dependencies {
+   
+    api 'org.springframework.boot:spring-boot-starter-data-jpa'
+    runtimeOnly 'com.h2database:h2'
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+}
+```
+
+module-core 에서는 entity 클래스와 repository 기능이 필요하고 repository 테스트가 필요하기 때문에 관련 의존성들을 추가해줍니다.
+현재 단계에서는 여기까지만 설정을 합니다.
+[이동욱님의 블로그](https://jojoldu.tistory.com/m/123) 에서는 gradle3 버전을 쓰고 있어, readme.md 작성 기준으로 최신버전인 gradle7 에 알맞게 변경하였습니다.
+외부모듈에서 module-core의 member 엔티티에 접근하기 위해서 implementation 대신 api를 사용했습니다. api를 사용하면 module-core를 가져오는 모듈에서 또한 해당 라이브러리에 대한 의존성이 추가됩니다.
+이 때문에 Gradle 에서는 일반적으로는 api를 사용하는 것을 권장하지 않지만, 외부모듈에서도 라이브러리를 포함시켜 가져오기 위해서 사용했습니다.
+
+![image](https://user-images.githubusercontent.com/43958570/196890366-ff5371c3-5bd1-4e8f-aeef-fb7640b403c6.png)
+
+
+이제 module-core 의 repository 가 잘 동작하는 지 테스트를 해보겠습니다.
+```java
+package com.blog.application;
+
+import com.blog.domain.Member;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.junit.jupiter.SpringExtension;
+
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.is;
+import static org.junit.jupiter.api.Assertions.*;
+
+@ExtendWith(SpringExtension.class)
+@DataJpaTest
+class MemberServiceTest {
+
+    @Autowired
+    private MemberService memberService;
+
+    @Test
+    public void 임의_회원을_등록한다() {
+        memberService.saveAnyMember();
+        Member saved = memberService.findAnyMember();
+        assertThat(saved.getName(),is("random"));
+    }
+}
+```
+
+> ![image](https://user-images.githubusercontent.com/43958570/196893479-1f36f0c8-5f6b-46e1-83c0-24ed343d7420.png)
+
+위와 같은 에러 메시지와 함께 테스트가 실패합니다. 현재 테스트코드에는 몇가지 문제가 있기 때문입니다.
+먼저, MemberService는 SpringFramework에서 제공하는 @Service 어노테이션을 사용하고 있어 MemberService 클래스를 빈으로 등록하였는데, 테스트코드에서는 SpringBoot Context를 불러오지 못하기 때문입니다.
+@DataJpaTest 대신 @SpringBootTest 어노테이션을 사용해 spring context를 불러와야 합니다. 
+어노테이션을 변경하고 다시 테스트를 실행해도 여전히 동일한 에러가 나타납니다. 
+이번에 테스트가 실패한 이유는 module-core 프로젝트는 @SpringBootApplication과 같은 Spring Context를 불러오는 포인트가 없어서 입니다.
+실제로는 필요하지 않지만 임시로 사용할 클래스를 만들어 주겠습니다.
+
+### module-core CoreApplicationTests ###
+```java
+@SpringBootApplication
+public class CoreApplicationTests {
+
+    public void contextLoads() {}
+}
+```
+
+![image](https://user-images.githubusercontent.com/43958570/196895890-1f54f761-b7d2-427a-bafa-b1112446edde.png)
+
+다시 테스트 해보니 이제는 잘 통과하는 걸 볼 수 있습니다.
+이제 다음 모듈인 module-batch 코드를 작성해보겠습니다.
+module-batch 에서는 module-core 의 클래스를 사용할 것이기 때문에 컨트롤러와 서비스를 만들겠습니다.
+
+![image](https://user-images.githubusercontent.com/43958570/196897783-8b526d59-e64d-42f2-9561-13fbdf805d38.png)
+
+### module-batch BatchController ###
+```java
+@RestController
+@RequiredArgsConstructor
+public class BatchController {
+
+    private final BatchFacade batchFacade;
+
+    @PostMapping("/")
+    public void saveAnyMember() {
+        batchFacade.saveAnyMember();
+    }
+
+    @GetMapping("/")
+    public Member getNewMember() {
+        return batchFacade.findAnyMember();
+    }
+}
+```
+
+### module-batch BatchFacade ###
+```java
+@Service
+@RequiredArgsConstructor
+public class BatchFacade {
+
+    private final MemberService memberService;
+
+    public void saveAnyMember() {
+        memberService.saveAnyMember();
+    }
+
+    public Member findAnyMember() {
+        return memberService.findAnyMember();
+    }
+}
+```
+module-batch 에서 사용할 build.gradle 에서 사용할 의존성을 추가하겠습니다.
+```groovy
+dependencies {
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation project(':module-core')
+}
+```
+
+
+### ROOT build.gradle ###
 ``` groovy
 // plugins 는 미리 구성해놓은 task 들의 그룹이며 특정 빌드과정에 필요한 기본정보를 포함하고 있음
 plugins {
@@ -116,6 +358,7 @@ subprojects {
     }
 }
 ```
+
 
 
 

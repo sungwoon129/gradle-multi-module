@@ -16,6 +16,5 @@ dependencies {
     // 이 외의 계층에서는 api 를 활용하여 다른 모듈에 접근이 가능하도록 개발한다.
     api 'org.springframework.boot:spring-boot-starter-data-jpa'
     runtimeOnly 'com.h2database:h2'
-    testImplementation 'org.springframework.boot:spring-boot-starter-test'
 }
 

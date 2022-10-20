@@ -20,10 +20,9 @@ class MemberServiceTest {
     private MemberService memberService;
 
     @Test
-    public void 임의_회원을_저장한다() {
+    public void 임의_회원을_등록한다() {
         memberService.saveAnyMember();
         Member saved = memberService.findAnyMember();
-        assertThat(saved.getName(),is("sungwoony"));
+        assertThat(saved.getName(),is("random"));
     }
-
 }
