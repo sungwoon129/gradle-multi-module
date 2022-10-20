@@ -378,13 +378,13 @@ batch 모듈은 참조용 모듈이 아니기 때문에 bootJar 옵션을 따로
 이제 모두 끝났습니다. batch 모듈을 빌드해서 정상적으로 동작하는지 확인만 하면 됩니다.
 module-web 프로젝트는 module-batch와 거의 동일한 구조로 되어 있으니 github 코드로 확인하면 좋을 것 같습니다.
 
-### module-core 실행 ###
+### module-batch 실행 ###
 
 ![image](https://user-images.githubusercontent.com/43958570/196987801-a89e9bce-c8a3-40ec-a232-4c83843310ef.png)
 
 실행이 잘 된 것 같습니다. 이제 postman을 통해 결과를 확인해보겠습니다.
 
-### module-core 결과 ###
+### module-batch 결과 ###
 ![image](https://user-images.githubusercontent.com/43958570/196988461-7803e4cf-b4fa-4999-a5db-3c8cbe59e320.png)
 
 post 요청을 보내 임의의 회원을 생성한 후 localhost:8080 에 접속해 보겠습니다.
