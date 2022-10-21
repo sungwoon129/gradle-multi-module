@@ -63,7 +63,7 @@ settings.gradle 을 열어보면 현재 ROOT 프로젝트에서 하위 모듈로
 
 ### ROOT build.gradle ###
 ``` groovy
-// plugins 는 미리 구성해놓은 task 들의 그룹이며 특정 빌드과정에 필요한 기본정보를 포함하고 있습니다
+// plugins 는 미리 구성해놓은 task 들의 그룹이며 특정 빌드과정에 필요한 기본정보를 포함하고 있습니다.
 plugins {
     // Spring Boot Gradle 플러그인으로 사용하면 Spring Boot 종속성을 관리하고 Gradle을 빌드 도구로 사용할 때 애플리케이션을 패키징하고 실행할 수 있습니다.
     // 단독으로 사용되는 경우 프로젝트에 거의 영향을 주지 않습니다.
@@ -83,19 +83,19 @@ repositories {
 // Root 프로젝트는 main 없이 라이브러리의 역할을 하는 모듈이기 때문에 false로 비활성화해줍니다.
 bootJar.enabled = false
 
-// settings.gradle 에 명시된 include 프로젝트 모두에 대한 공통사항 정의(루트 제외)
+// settings.gradle 에 명시된 include 프로젝트 모두에 대한 공통사항 정의(상위 루트 제외)
 subprojects {
     group = 'com.blog'
     version = '0.0.1-SNAPSHOT'
     sourceCompatibility = '11'
 
-    // subprojects 블록 안에서는 plugins 블록을 사용할 수 없어, 플러그인 등록을 위해서는 apply plugin 을 사용해야함
+    // subprojects 블록 안에서는 plugins 블록을 사용할 수 없어, 플러그인 등록을 위해서는 apply plugin 을 사용해야합니다.
 
     apply plugin: 'java'
-    // build.gradle 에서 api() 를 사용하려면 java-library 플러그인 적용필요
+    // build.gradle 에서 api() 를 사용하려면 java-library 플러그인을 적용해야합니다.
     apply plugin: 'java-library'
     apply plugin: 'org.springframework.boot'
-    // spring boot dependency 플러그인을 적용하여 사용중인 부트 버전에서 자동으로 의존성을 가져옴
+    // spring boot dependency 플러그인을 적용하여 사용중인 부트 버전에서 자동으로 의존성을 가져옵니다.ㄴ
     apply plugin: 'io.spring.dependency-management'
 
     configurations {
@@ -108,7 +108,7 @@ subprojects {
         mavenCentral()
     }
 
-    // 관리하는 모듈의 공통 dependencies
+    // 관리하는 모듈에 공통 dependencies
     dependencies {
         compileOnly 'org.projectlombok:lombok'
         annotationProcessor 'org.projectlombok:lombok'
